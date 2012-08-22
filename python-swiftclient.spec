@@ -59,7 +59,7 @@ popd
 rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 
 %files
-%doc README.rst
+%doc LICENSE README.rst
 %{_bindir}/swift
 %{python_sitelib}/swiftclient
 %{python_sitelib}/*.egg-info
