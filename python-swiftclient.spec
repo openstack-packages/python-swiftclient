@@ -1,5 +1,5 @@
 Name:       python-swiftclient
-Version:    1.1.1
+Version:    1.2.0
 Release:    1%{?dist}
 Summary:    Python API and CLI for OpenStack Swift
 
@@ -10,11 +10,8 @@ BuildArch:  noarch
 Source0:    https://launchpad.net/%{name}/trunk/%{version}/+download/%{name}-%{version}.tar.gz
 
 #
-# patches_base=1.1.1
+# patches_base=1.2.0
 #
-Patch0001: 0001-Now-url-encodes-decodes-x-object-manifest-values.patch
-Patch0002: 0002-Removes-the-title-Swift-Web-from-landing-page.patch
-Patch0003: 0003-Consume-version-info-from-pkg_resources.patch
 
 
 Requires:   python-simplejson
@@ -38,9 +35,6 @@ Swift's API.
 
 %prep
 %setup -q
-%patch0001 -p1
-%patch0002 -p1
-%patch0003 -p1
 
 %build
 %{__python} setup.py build
@@ -68,5 +62,8 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Thu Sep 13 2012 Alan Pevec <apevec@redhat.com> 1.2.0-1
+- Update to 1.2.0 release.
+
 * Tue Jul 31 2012 Alan Pevec <apevec@redhat.com> 1.1.1-1
 - Initial release.
