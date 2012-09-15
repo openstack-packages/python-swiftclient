@@ -7,7 +7,8 @@ License:    ASL 2.0
 URL:        https://github.com/openstack/python-swiftclient
 BuildArch:  noarch
 
-Source0:    https://launchpad.net/%{name}/trunk/%{version}/+download/%{name}-%{version}.tar.gz
+#Source0:    https://launchpad.net/%{name}/trunk/%{version}/+download/%{name}-%{version}.tar.gz
+Source0:    http://tarballs.openstack.org/%{name}/%{name}-%{version}.tar.gz
 
 #
 # patches_base=1.2.0
