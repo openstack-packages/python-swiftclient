@@ -1,6 +1,6 @@
 Name:       python-swiftclient
 Version:    1.2.0
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    Python API and CLI for OpenStack Swift
 
 License:    ASL 2.0
@@ -16,8 +16,8 @@ Source0:    http://tarballs.openstack.org/%{name}/%{name}-%{version}.tar.gz
 
 
 Requires:   python-simplejson
-# /usr/bin/swift collision with swift-im rhbz#857900
-Conflicts:  swift
+# /usr/bin/swift collision with older swift-im rhbz#857900
+Conflicts:  swift < 2.0-0.3
 
 BuildRequires: python2-devel
 BuildRequires: python-setuptools
