@@ -1,6 +1,6 @@
 Name:       python-swiftclient
 Version:    1.2.0
-Release:    3%{?dist}
+Release:    4%{?dist}
 Summary:    Python API and CLI for OpenStack Swift
 
 License:    ASL 2.0
@@ -65,6 +65,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.2.0-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
+
 * Mon Sep 17 2012 Alan Pevec <apevec@redhat.com> 1.2.0-2
 - conflict with swift-im bz#857900
 
