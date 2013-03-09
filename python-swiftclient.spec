@@ -1,20 +1,16 @@
 Name:       python-swiftclient
-Version:    1.2.0
-Release:    4%{?dist}
-Summary:    Python API and CLI for OpenStack Swift
-
+Version:    1.3.0
+Release:    1%{?dist}
+Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
-URL:        https://github.com/openstack/python-swiftclient
+URL:        http://pypi.python.org/pypi/%{name}
+Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
+
+#
+# patches_base=1.3.0
+#
+
 BuildArch:  noarch
-
-#Source0:    https://launchpad.net/%{name}/trunk/%{version}/+download/%{name}-%{version}.tar.gz
-Source0:    http://tarballs.openstack.org/%{name}/%{name}-%{version}.tar.gz
-
-#
-# patches_base=1.2.0
-#
-
-
 Requires:   python-simplejson
 # /usr/bin/swift collision with older swift-im rhbz#857900
 Conflicts:  swift < 2.0-0.3
@@ -24,20 +20,24 @@ BuildRequires: python-setuptools
 
 %description
 Client library and command line utility for interacting with Openstack
-Swift's API.
+Object Storage API.
 
 %package doc
-Summary:    Documentation for OpenStack Swift API Client
+Summary:    Documentation for OpenStack Object Storage API Client
 Group:      Documentation
 
 BuildRequires: python-sphinx
 
 %description doc
 Documentation for the client library for interacting with Openstack
-Swift's API.
+Object Storage API.
 
 %prep
 %setup -q
+# Remove bundled egg-info
+rm -rf python_swiftclient.egg-info
+# let RPM handle deps
+sed -i '/setup_requires/d; /install_requires/d; /dependency_links/d' setup.py
 
 %build
 %{__python} setup.py build
@@ -65,6 +65,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Sat Mar 09 2013 Alan Pevec <apevec@redhat.com> 1.3.0-1
+- Update to 1.3.0 release.
+
 * Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.2.0-4
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
 
