@@ -1,5 +1,5 @@
 Name:       python-swiftclient
-Version:    1.3.0
+Version:    1.4.0
 Release:    1%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
@@ -7,7 +7,7 @@ URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
 #
-# patches_base=1.3.0
+# patches_base=1.4.0
 #
 
 BuildArch:  noarch
@@ -65,6 +65,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Mon May 13 2013 Jakub Ruzicka <jruzicka@redhat.com> 1.4.0-1
+- Update to upstream 1.4.0 release.
+
 * Sat Mar 09 2013 Alan Pevec <apevec@redhat.com> 1.3.0-1
 - Update to 1.3.0 release.
 
