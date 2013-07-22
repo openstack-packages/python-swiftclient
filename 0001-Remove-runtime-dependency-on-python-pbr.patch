@@ -1,0 +1,35 @@
+From af09bae37223f4c6e990f5e3badee502229ca101 Mon Sep 17 00:00:00 2001
+From: Jakub Ruzicka <jruzicka@redhat.com>
+Date: Tue, 23 Jul 2013 16:28:21 +0200
+Subject: [PATCH] Remove runtime dependency on python-pbr.
+
+---
+ swiftclient/version.py | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/swiftclient/version.py b/swiftclient/version.py
+index 7bb5d18..bb908b8 100644
+--- a/swiftclient/version.py
++++ b/swiftclient/version.py
+@@ -14,6 +14,19 @@
+ #    License for the specific language governing permissions and limitations
+ #    under the License.
+ 
+-from pbr import version as pbr_version
++class VersionInfo(object):
++    """
++    Emulate pbr VersionInfo to get rid of runtime dependency on python-pbr.
++    """
++    version = "REDHATSWIFTCLIENTVERSION"
+ 
+-version_info = pbr_version.VersionInfo('python-swiftclient')
++    def release_string(self):
++        return self.version
++
++    def version_string(self):
++        return self.version
++
++    def cached_version_string(self, prefix=""):
++        return "%s%s" % (prefix, self.version)
++
++version_info = VersionInfo()

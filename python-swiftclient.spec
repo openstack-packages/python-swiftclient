@@ -1,5 +1,5 @@
 Name:       python-swiftclient
-Version:    1.4.0
+Version:    1.5.0
 Release:    1%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
@@ -7,8 +7,9 @@ URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
 #
-# patches_base=1.4.0
+# patches_base=1.5.0
 #
+Patch0001: 0001-Remove-runtime-dependency-on-python-pbr.patch
 
 BuildArch:  noarch
 Requires:   python-simplejson
@@ -17,6 +18,8 @@ Conflicts:  swift < 2.0-0.3
 
 BuildRequires: python2-devel
 BuildRequires: python-setuptools
+BuildRequires: python-d2to1
+BuildRequires: python-pbr
 
 %description
 Client library and command line utility for interacting with Openstack
@@ -34,19 +37,23 @@ Object Storage API.
 
 %prep
 %setup -q
+
+%patch0001 -p1
+
+# We provide version like this in order to remove runtime dep on pbr.
+sed -i s/REDHATSWIFTCLIENTVERSION/%{version}/ swiftclient/version.py
+
 # Remove bundled egg-info
 rm -rf python_swiftclient.egg-info
 # let RPM handle deps
-sed -i '/setup_requires/d; /install_requires/d; /dependency_links/d' setup.py
+: > requirements.txt
+: > test-requirements.txt
 
 %build
 %{__python} setup.py build
 
 %install
 %{__python} setup.py install -O1 --skip-build --root %{buildroot}
-
-# Delete tests
-rm -fr %{buildroot}%{python_sitelib}/tests
 
 export PYTHONPATH="$( pwd ):$PYTHONPATH"
 pushd doc
@@ -65,6 +72,11 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Mon Jul 22 2013 Jakub Ruzicka <jruzicka@redhat.com> 1.5.0-1
+- Update to upstream 1.5.0 release.
+- Add new build requires: python-pbr, python-d2to1.
+- Remove runtime dependency on python-pbr.
+
 * Mon May 13 2013 Jakub Ruzicka <jruzicka@redhat.com> 1.4.0-1
 - Update to upstream 1.4.0 release.
 
