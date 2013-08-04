@@ -1,6 +1,6 @@
 Name:       python-swiftclient
 Version:    1.5.0
-Release:    1%{?dist}
+Release:    2%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
 URL:        http://pypi.python.org/pypi/%{name}
@@ -72,6 +72,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Sun Aug 04 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.5.0-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
+
 * Mon Jul 22 2013 Jakub Ruzicka <jruzicka@redhat.com> 1.5.0-1
 - Update to upstream 1.5.0 release.
 - Add new build requires: python-pbr, python-d2to1.
