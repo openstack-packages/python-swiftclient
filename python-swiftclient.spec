@@ -1,13 +1,13 @@
 Name:       python-swiftclient
-Version:    1.5.0
-Release:    2%{?dist}
+Version:    1.6.0
+Release:    1%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
 URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
 #
-# patches_base=1.5.0
+# patches_base=1.6.0
 #
 Patch0001: 0001-Remove-runtime-dependency-on-python-pbr.patch
 
@@ -45,9 +45,6 @@ sed -i s/REDHATSWIFTCLIENTVERSION/%{version}/ swiftclient/version.py
 
 # Remove bundled egg-info
 rm -rf python_swiftclient.egg-info
-# let RPM handle deps
-: > requirements.txt
-: > test-requirements.txt
 
 %build
 %{__python} setup.py build
@@ -59,6 +56,9 @@ export PYTHONPATH="$( pwd ):$PYTHONPATH"
 pushd doc
 make html
 popd
+
+install -p -D -m 644 doc/manpages/swift.1 %{buildroot}%{_mandir}/man1/swift.1
+
 # Fix hidden-file-or-dir warnings
 rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 
@@ -67,11 +67,17 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %{_bindir}/swift
 %{python_sitelib}/swiftclient
 %{python_sitelib}/*.egg-info
+%{_mandir}/man1/swift.1*
 
 %files doc
 %doc LICENSE doc/build/html
 
 %changelog
+* Mon Sep 02 2013 Jakub Ruzicka <jruzicka@redhat.com> - 1.6.0-1
+- Update to upstream 1.6.0.
+- Include man page.
+- Remove all pbr deps in the patch instead of this spec file.
+
 * Sun Aug 04 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1.5.0-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
 
