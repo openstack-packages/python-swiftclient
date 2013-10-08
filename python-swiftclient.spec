@@ -1,5 +1,5 @@
 Name:       python-swiftclient
-Version:    1.6.0
+Version:    1.7.0
 Release:    1%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
@@ -7,7 +7,7 @@ URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
 #
-# patches_base=1.6.0
+# patches_base=1.7.0
 #
 Patch0001: 0001-Remove-runtime-dependency-on-python-pbr.patch
 
@@ -73,6 +73,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Tue Oct 08 2013 Jakub Ruzicka <jruzicka@redhat.com> - 1.7.0-1
+- Update to upstream 1.7.0.
+
 * Mon Sep 02 2013 Jakub Ruzicka <jruzicka@redhat.com> - 1.6.0-1
 - Update to upstream 1.6.0.
 - Include man page.
