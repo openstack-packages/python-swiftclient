@@ -1,5 +1,5 @@
 Name:       python-swiftclient
-Version:    1.7.0
+Version:    1.8.0
 Release:    1%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
@@ -7,12 +7,15 @@ URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
 #
-# patches_base=1.7.0
+# patches_base=1.8.0
 #
-Patch0001: 0001-Remove-runtime-dependency-on-python-pbr.patch
+Patch0001: 0001-Remove-builtin-requirements-handling.patch
+Patch0002: 0002-Add-SSL-certificate-verification-by-default.patch
 
 BuildArch:  noarch
 Requires:   python-simplejson
+Requires:   python-keystoneclient
+Requires:   pyOpenSSL >= 0.12
 # /usr/bin/swift collision with older swift-im rhbz#857900
 Conflicts:  swift < 2.0-0.3
 
@@ -20,6 +23,7 @@ BuildRequires: python2-devel
 BuildRequires: python-setuptools
 BuildRequires: python-d2to1
 BuildRequires: python-pbr
+BuildRequires: pyOpenSSL
 
 %description
 Client library and command line utility for interacting with Openstack
@@ -39,9 +43,7 @@ Object Storage API.
 %setup -q
 
 %patch0001 -p1
-
-# We provide version like this in order to remove runtime dep on pbr.
-sed -i s/REDHATSWIFTCLIENTVERSION/%{version}/ swiftclient/version.py
+%patch0002 -p1
 
 # Remove bundled egg-info
 rm -rf python_swiftclient.egg-info
@@ -73,6 +75,13 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Tue Dec 10 2013 Jakub Ruzicka <jruzicka@redhat.com> 1.8.0-1
+- Update to upstream 1.8.0
+- Add SSL certificate verification by default (CVE-2013-6396)
+- New runtime and build dependency: pyOpenSSL
+- New runtime dependency: python-keystoneclient
+- python-pbr has been removed from runtime by upstream
+
 * Tue Oct 08 2013 Jakub Ruzicka <jruzicka@redhat.com> - 1.7.0-1
 - Update to upstream 1.7.0.
 
