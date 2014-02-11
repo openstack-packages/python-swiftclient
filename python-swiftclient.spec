@@ -1,6 +1,6 @@
 Name:       python-swiftclient
 Version:    1.8.0
-Release:    1%{?dist}
+Release:    2%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
 URL:        http://pypi.python.org/pypi/%{name}
@@ -75,6 +75,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Tue Feb 11 2014 Pete Zaitcev <zaitcev@redhat.com> 1.8.0-2
+- Fix the fix for CVE-2013-6395: EBADF, wildcards
+
 * Tue Dec 10 2013 Jakub Ruzicka <jruzicka@redhat.com> 1.8.0-1
 - Update to upstream 1.8.0
 - Add SSL certificate verification by default (CVE-2013-6396)

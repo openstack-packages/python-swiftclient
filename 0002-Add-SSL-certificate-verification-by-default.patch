@@ -1,4 +1,6 @@
-From a92005b5b92dde8e7269557a50fbc498762ab4b2 Mon Sep 17 00:00:00 2001
+Based on https://review.openstack.org/33473 #18 with close hacks removed.
+This should not throw EBADF and should check wildcard certs properly.
+
 From: Thomas Leaman <thomas.leaman@hp.com>
 Date: Mon, 24 Jun 2013 16:22:55 +0000
 Subject: [PATCH] Add SSL certificate verification by default
@@ -9,27 +11,10 @@ Can be turned off with --insecure
 Fixes bug 1199783
 
 Change-Id: I168dba604b32e0cb814333d64396926e2bccf242
----
- bin/swift                       |   5 +-
- swiftclient/client.py           |  24 ++---
- swiftclient/https_connection.py | 162 +++++++++++++++++++++++------
- tests/test_ssl.py               | 225 ++++++++++++++++++++++++++++++++++++++++
- tests/test_swiftclient.py       |  11 +-
- tests/var/ca.crt                |  34 ++++++
- tests/var/certificate.crt       |  66 ++++++++++++
- tests/var/expired-cert.crt      |  35 +++++++
- tests/var/privatekey.key        |  51 +++++++++
- 9 files changed, 560 insertions(+), 53 deletions(-)
- create mode 100644 tests/test_ssl.py
- create mode 100644 tests/var/ca.crt
- create mode 100644 tests/var/certificate.crt
- create mode 100644 tests/var/expired-cert.crt
- create mode 100644 tests/var/privatekey.key
 
-diff --git a/bin/swift b/bin/swift
-index 0de5fbe..e11e62b 100755
---- a/bin/swift
-+++ b/bin/swift
+diff -urpN python-swiftclient-1.8.0-0002_undone/bin/swift python-swiftclient-1.8.0-p3/bin/swift
+--- python-swiftclient-1.8.0-0002_undone/bin/swift	2014-02-11 15:21:36.217222192 -0700
++++ python-swiftclient-1.8.0-p3/bin/swift	2014-02-11 15:19:14.684021657 -0700
 @@ -1411,9 +1411,8 @@ Examples:
      parser.add_option('--insecure',
                        action="store_true", dest="insecure",
@@ -42,10 +27,9 @@ index 0de5fbe..e11e62b 100755
                             'Defaults to env[SWIFTCLIENT_INSECURE] '
                             '(set to \'true\' to enable).')
      parser.add_option('--no-ssl-compression',
-diff --git a/swiftclient/client.py b/swiftclient/client.py
-index a95ce70..5535a47 100644
---- a/swiftclient/client.py
-+++ b/swiftclient/client.py
+diff -urpN python-swiftclient-1.8.0-0002_undone/swiftclient/client.py python-swiftclient-1.8.0-p3/swiftclient/client.py
+--- python-swiftclient-1.8.0-0002_undone/swiftclient/client.py	2014-02-11 15:21:36.217222192 -0700
++++ python-swiftclient-1.8.0-p3/swiftclient/client.py	2014-02-11 15:20:26.420142203 -0700
 @@ -25,15 +25,11 @@ from functools import wraps
  
  from urllib import quote as _quote
@@ -64,24 +48,27 @@ index a95ce70..5535a47 100644
  
  
  try:
-@@ -119,13 +115,15 @@ except ImportError:
+@@ -119,13 +115,18 @@ except ImportError:
      from json import loads as json_loads
  
  
 -def http_connection(url, proxy=None, ssl_compression=True):
-+def http_connection(url, proxy=None, insecure=False, ssl_compression=True):
++def http_connection(url, proxy=None, cacert=None, insecure=False,
++                    ssl_compression=True):
      """
      Make an HTTPConnection or HTTPSConnection
  
      :param url: url to connect to
      :param proxy: proxy to connect through, if any; None by default; str of the
                    format 'http://127.0.0.1:8888' to set one
++    :param cacert: A CA bundle file to use in verifying a TLS server
++                   certificate.
 +    :param insecure: Allow to access servers without checking SSL certs.
 +                     The server's certificate will not be verified.
      :param ssl_compression: Whether to enable compression at the SSL layer.
                              If set to 'False' and the pyOpenSSL library is
                              present an attempt to disable SSL compression
-@@ -141,10 +139,9 @@ def http_connection(url, proxy=None, ssl_compression=True):
+@@ -141,10 +142,10 @@ def http_connection(url, proxy=None, ssl
      if parsed.scheme == 'http':
          conn = HTTPConnection(host)
      elif parsed.scheme == 'https':
@@ -90,12 +77,13 @@ index a95ce70..5535a47 100644
 -        else:
 -            conn = HTTPSConnectionNoSSLComp(host)
 +        conn = HTTPSConnection(host,
++                               cacert=cacert,
 +                               insecure=insecure,
 +                               ssl_compression=ssl_compression)
      else:
          raise ClientException('Cannot handle protocol scheme %s for url %s' %
                                (parsed.scheme, repr(url)))
-@@ -1043,8 +1040,8 @@ class Connection(object):
+@@ -1043,8 +1044,8 @@ class Connection(object):
          :param os_options: The OpenStack options which can have tenant_id,
                             auth_token, service_type, endpoint_type,
                             tenant_name, object_storage_url, region_name
@@ -106,19 +94,19 @@ index a95ce70..5535a47 100644
          :param ssl_compression: Whether to enable compression at the SSL layer.
                                  If set to 'False' and the pyOpenSSL library is
                                  present an attempt to disable SSL compression
-@@ -1080,6 +1077,7 @@ class Connection(object):
+@@ -1080,6 +1081,8 @@ class Connection(object):
  
      def http_connection(self):
          return http_connection(self.url,
++                               cacert=self.cacert,
 +                               insecure=self.insecure,
                                 ssl_compression=self.ssl_compression)
  
      def _add_response_dict(self, target_dict, kwargs):
-diff --git a/swiftclient/https_connection.py b/swiftclient/https_connection.py
-index 2a2dc1f..a0cf511 100644
---- a/swiftclient/https_connection.py
-+++ b/swiftclient/https_connection.py
-@@ -18,45 +18,132 @@ HTTPS/SSL related functionality
+diff -urpN python-swiftclient-1.8.0-0002_undone/swiftclient/https_connection.py python-swiftclient-1.8.0-p3/swiftclient/https_connection.py
+--- python-swiftclient-1.8.0-0002_undone/swiftclient/https_connection.py	2014-02-11 15:21:36.218222210 -0700
++++ python-swiftclient-1.8.0-p3/swiftclient/https_connection.py	2014-02-11 15:25:05.051487277 -0700
+@@ -18,45 +18,145 @@ HTTPS/SSL related functionality
  """
  
  import socket
@@ -133,7 +121,7 @@ index 2a2dc1f..a0cf511 100644
 -    from eventlet.green.OpenSSL.SSL import GreenConnection
 -    from eventlet.greenio import GreenSocket
 -    from eventlet.patcher import is_monkey_patched
- 
+-
 -    def getsockopt(self, *args, **kwargs):
 -        return self.fd.getsockopt(*args, **kwargs)
 -    # The above is a workaround for an eventlet bug in getsockopt.
@@ -143,15 +131,16 @@ index 2a2dc1f..a0cf511 100644
 -except ImportError:
 -    def is_monkey_patched(*args):
 -        return False
++
 +class SSLCertificateError(BaseException):
 +    pass
 +
- 
++
 +class SSLConfigurationError(BaseException):
 +    pass
  
+ 
 -class HTTPSConnectionNoSSLComp(HTTPSConnection):
-+
 +class HTTPSConnection(_HTTPSConnection):
      """
 -    Extended HTTPSConnection which uses the OpenSSL library
@@ -186,8 +175,20 @@ index 2a2dc1f..a0cf511 100644
 +        connecting to, ie that the certificate's Common Name
 +        or a Subject Alternative Name matches 'host'.
 +        """
++        def check_match(name):
++            # Directly match the name
++            if name == host:
++                return True
++
++            # Support single wildcard matching
++            if name.startswith('*.') and host.find('.') > 0:
++                if name[2:] == host.split('.', 1)[1]:
++                    return True
++
++        common_name = x509.get_subject().commonName
++
 +        # First see if we can match the CN
-+        if x509.get_subject().commonName == host:
++        if check_match(common_name):
 +            return True
 +
 +        # Also try Subject Alternative Names for a match
@@ -197,8 +198,9 @@ index 2a2dc1f..a0cf511 100644
 +            if ext.get_short_name() == 'subjectAltName':
 +                san_list = str(ext)
 +                for san in ''.join(san_list.split()).split(','):
-+                    if san == "DNS:%s" % host:
-+                        return True
++                    if san.startswith('DNS:'):
++                        if check_match(san.split(':', 1)[1]):
++                            return True
 +
 +        # Server certificate does not match host
 +        msg = ('Host "%s" does not match x509 certificate contents: '
@@ -274,7 +276,7 @@ index 2a2dc1f..a0cf511 100644
  
      def connect(self):
          """
-@@ -64,9 +151,24 @@ class HTTPSConnectionNoSSLComp(HTTPSConnection):
+@@ -64,6 +164,10 @@ class HTTPSConnectionNoSSLComp(HTTPSConn
          per-connection parameters.
          """
          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -285,21 +287,7 @@ index 2a2dc1f..a0cf511 100644
          self.sock = OpenSSLConnectionDelegator(self.context, sock)
          self.sock.connect((self.host, self.port))
  
-+    def close(self):
-+        if self.sock:
-+            # Removing reference to socket but don't close it yet.
-+            # Response close will close both socket and associated
-+            # file. Closing socket too soon will cause response
-+            # reads to fail with socket IO error 'Bad file descriptor'.
-+            self.sock = None
-+
-+        # Calling close on HTTPSConnection to continue doing that cleanup.
-+        HTTPSConnection.close(self)
-+
- 
- class OpenSSLConnectionDelegator(object):
-     """
-@@ -79,17 +181,15 @@ class OpenSSLConnectionDelegator(object):
+@@ -79,14 +183,7 @@ class OpenSSLConnectionDelegator(object)
      a delegator must be used.
      """
      def __init__(self, *args, **kwargs):
@@ -315,20 +303,10 @@ index 2a2dc1f..a0cf511 100644
  
      def __getattr__(self, name):
          return getattr(self.connection, name)
- 
-     def makefile(self, *args, **kwargs):
-+        # Making sure socket is closed when this file is closed
-+        # since we now avoid closing socket on connection close
-+        # see new close method under VerifiedHTTPSConnection
-+        kwargs['close'] = True
-+
-         return socket._fileobject(self.connection, *args, **kwargs)
-diff --git a/tests/test_ssl.py b/tests/test_ssl.py
-new file mode 100644
-index 0000000..b17b8bb
---- /dev/null
-+++ b/tests/test_ssl.py
-@@ -0,0 +1,225 @@
+diff -urpN python-swiftclient-1.8.0-0002_undone/tests/test_ssl.py python-swiftclient-1.8.0-p3/tests/test_ssl.py
+--- python-swiftclient-1.8.0-0002_undone/tests/test_ssl.py	1969-12-31 17:00:00.000000000 -0700
++++ python-swiftclient-1.8.0-p3/tests/test_ssl.py	2014-02-11 15:19:14.686021692 -0700
+@@ -0,0 +1,253 @@
 +# Copyright 2013 OpenStack LLC.
 +# All Rights Reserved.
 +#
@@ -477,6 +455,34 @@ index 0000000..b17b8bb
 +        except:
 +            self.fail('Unexpected exception.')
 +
++    def test_ssl_cert_subject_alt_name_wildcard(self):
++        """
++        Test certificate: wildcard SAN match
++        """
++        cert_file = os.path.join(TEST_VAR_DIR, 'wildcard-san-certificate.crt')
++        cert = crypto.load_certificate(crypto.FILETYPE_PEM,
++                                       file(cert_file).read())
++        # The expected cert should have CN=0.0.0.0
++        self.assertEqual(cert.get_subject().commonName, '0.0.0.0')
++        try:
++            conn = h.HTTPSConnection('alt1.example.com', 0)
++            conn.verify_callback(None, cert, 0, 0, 1)
++        except Exception:
++            self.fail('Unexpected exception.')
++
++        try:
++            conn = h.HTTPSConnection('alt2.example.com', 0)
++            conn.verify_callback(None, cert, 0, 0, 1)
++        except Exception:
++            self.fail('Unexpected exception.')
++
++        try:
++            conn = h.HTTPSConnection('alt3.example.net', 0)
++            conn.verify_callback(None, cert, 0, 0, 1)
++            self.fail('Failed to raise assertion.')
++        except h.SSLCertificateError:
++            pass
++
 +    def test_ssl_cert_mismatch(self):
 +        """
 +        Test certificate: bogus host
@@ -554,10 +560,9 @@ index 0000000..b17b8bb
 +                              cacert=cacert, ssl_compression=False)
 +        except h.SSLConfigurationError:
 +            self.fail('Failed to init HTTPSConnection.')
-diff --git a/tests/test_swiftclient.py b/tests/test_swiftclient.py
-index 6cf3c11..10eecde 100644
---- a/tests/test_swiftclient.py
-+++ b/tests/test_swiftclient.py
+diff -urpN python-swiftclient-1.8.0-0002_undone/tests/test_swiftclient.py python-swiftclient-1.8.0-p3/tests/test_swiftclient.py
+--- python-swiftclient-1.8.0-0002_undone/tests/test_swiftclient.py	2014-02-11 15:21:36.219222226 -0700
++++ python-swiftclient-1.8.0-p3/tests/test_swiftclient.py	2014-02-11 15:20:53.715565220 -0700
 @@ -15,7 +15,6 @@
  
  # TODO: More tests
@@ -566,16 +571,17 @@ index 6cf3c11..10eecde 100644
  import socket
  import StringIO
  import testtools
-@@ -126,7 +125,7 @@ class MockHttpTest(testtools.TestCase):
+@@ -126,7 +125,8 @@ class MockHttpTest(testtools.TestCase):
              query_string = kwargs.get('query_string')
              storage_url = kwargs.get('storage_url')
  
 -            def wrapper(url, proxy=None, ssl_compression=True):
-+            def wrapper(url, proxy=None, insecure=False, ssl_compression=True):
++            def wrapper(url, proxy=None, cacert=None, insecure=False,
++                        ssl_compression=True):
                  if storage_url:
                      self.assertEqual(storage_url, url)
  
-@@ -187,9 +186,8 @@ class TestHttpHelpers(MockHttpTest):
+@@ -187,9 +187,8 @@ class TestHttpHelpers(MockHttpTest):
          _junk, conn = c.http_connection(url)
          self.assertTrue(isinstance(conn, c.HTTPConnection))
          url = 'https://www.test.com'
@@ -587,21 +593,20 @@ index 6cf3c11..10eecde 100644
          url = 'ftp://www.test.com'
          self.assertRaises(c.ClientException, c.http_connection, url)
  
-@@ -841,7 +839,8 @@ class TestConnection(MockHttpTest):
+@@ -841,7 +840,9 @@ class TestConnection(MockHttpTest):
              def read(self, *args, **kwargs):
                  return ''
  
 -        def local_http_connection(url, proxy=None, ssl_compression=True):
-+        def local_http_connection(url, proxy=None, insecure=False,
++        def local_http_connection(url, proxy=None, cacert=None,
++                                  insecure=False,
 +                                  ssl_compression=True):
              parsed = urlparse(url)
              return parsed, LocalConnection()
  
-diff --git a/tests/var/ca.crt b/tests/var/ca.crt
-new file mode 100644
-index 0000000..c149d8c
---- /dev/null
-+++ b/tests/var/ca.crt
+diff -urpN python-swiftclient-1.8.0-0002_undone/tests/var/ca.crt python-swiftclient-1.8.0-p3/tests/var/ca.crt
+--- python-swiftclient-1.8.0-0002_undone/tests/var/ca.crt	1969-12-31 17:00:00.000000000 -0700
++++ python-swiftclient-1.8.0-p3/tests/var/ca.crt	2014-02-11 15:19:14.687021710 -0700
 @@ -0,0 +1,34 @@
 +-----BEGIN CERTIFICATE-----
 +MIIF7jCCA9YCCQDbl9qx7iIeJDANBgkqhkiG9w0BAQUFADCBuDEZMBcGA1UEChMQ
@@ -637,11 +642,9 @@ index 0000000..c149d8c
 +xRCSgzr5MqSObbO3EnWgcUocBvlPyYLnTM2T8C5wh3BGnJXqJSRETggNn8PXBVIm
 ++c5o+Ic0mYu4v8P1ZSozFdgf+HLriVPwzJU5dHvvTEu7sw==
 +-----END CERTIFICATE-----
-diff --git a/tests/var/certificate.crt b/tests/var/certificate.crt
-new file mode 100644
-index 0000000..06c02ab
---- /dev/null
-+++ b/tests/var/certificate.crt
+diff -urpN python-swiftclient-1.8.0-0002_undone/tests/var/certificate.crt python-swiftclient-1.8.0-p3/tests/var/certificate.crt
+--- python-swiftclient-1.8.0-0002_undone/tests/var/certificate.crt	1969-12-31 17:00:00.000000000 -0700
++++ python-swiftclient-1.8.0-p3/tests/var/certificate.crt	2014-02-11 15:19:14.687021710 -0700
 @@ -0,0 +1,66 @@
 +# Certificate:
 +#    Data:
@@ -709,11 +712,9 @@ index 0000000..06c02ab
 +tFpTY21/zVAHIvsj2n4F1231nILR6vBp/WbwBY7r7j0oRtbaO3B1Q6tsbCZQRkKU
 +tdc5rw==
 +-----END CERTIFICATE-----
-diff --git a/tests/var/expired-cert.crt b/tests/var/expired-cert.crt
-new file mode 100644
-index 0000000..227d422
---- /dev/null
-+++ b/tests/var/expired-cert.crt
+diff -urpN python-swiftclient-1.8.0-0002_undone/tests/var/expired-cert.crt python-swiftclient-1.8.0-p3/tests/var/expired-cert.crt
+--- python-swiftclient-1.8.0-0002_undone/tests/var/expired-cert.crt	1969-12-31 17:00:00.000000000 -0700
++++ python-swiftclient-1.8.0-p3/tests/var/expired-cert.crt	2014-02-11 15:19:14.688021727 -0700
 @@ -0,0 +1,35 @@
 +-----BEGIN CERTIFICATE-----
 +MIIGFTCCA/2gAwIBAgIBATANBgkqhkiG9w0BAQUFADCBuDEZMBcGA1UEChMQT3Bl
@@ -750,11 +751,9 @@ index 0000000..227d422
 +vpvU7fbNFAyxG4sjQC0wHoN6rn+kd1kzfprmBHKTx3W7y+hzjb+W7iS2EZn20k+N
 +l3+dFHnWayuCdqcFwIl3m8i8FupFihz9+A==
 +-----END CERTIFICATE-----
-diff --git a/tests/var/privatekey.key b/tests/var/privatekey.key
-new file mode 100644
-index 0000000..5b47d44
---- /dev/null
-+++ b/tests/var/privatekey.key
+diff -urpN python-swiftclient-1.8.0-0002_undone/tests/var/privatekey.key python-swiftclient-1.8.0-p3/tests/var/privatekey.key
+--- python-swiftclient-1.8.0-0002_undone/tests/var/privatekey.key	1969-12-31 17:00:00.000000000 -0700
++++ python-swiftclient-1.8.0-p3/tests/var/privatekey.key	2014-02-11 15:19:14.688021727 -0700
 @@ -0,0 +1,51 @@
 +-----BEGIN RSA PRIVATE KEY-----
 +MIIJKQIBAAKCAgEA1Ls6xKAGVDEjXbB4Wr5FRK6hiYYR2MqoM7BP8+FGHoWjKpyk
@@ -807,3 +806,61 @@ index 0000000..5b47d44
 +4dSUeTfw5wCKAoq9DHjyHdO5fnfkOvA5PMQ4JZAzOCzJak8ET+tw4wB/dBeYiLVi
 +l00GHLYAr5Nv/WqVnl/VLMd9rOCnLck+pxBNSa6dTrp3FuY00son6hneIvkv
 +-----END RSA PRIVATE KEY-----
+diff -urpN python-swiftclient-1.8.0-0002_undone/tests/var/wildcard-san-certificate.crt python-swiftclient-1.8.0-p3/tests/var/wildcard-san-certificate.crt
+--- python-swiftclient-1.8.0-0002_undone/tests/var/wildcard-san-certificate.crt	1969-12-31 17:00:00.000000000 -0700
++++ python-swiftclient-1.8.0-p3/tests/var/wildcard-san-certificate.crt	2014-02-11 15:19:14.688021727 -0700
+@@ -0,0 +1,54 @@
++#Certificate:
++#    Data:
++#        Version: 3 (0x2)
++#        Serial Number: 11990626514780340979 (0xa66743493fdcc2f3)
++#    Signature Algorithm: sha1WithRSAEncryption
++#        Issuer: C=US, ST=CA, L=State1, O=Openstack Test Org, OU=Openstack Test Unit, CN=0.0.0.0
++#        Validity
++#            Not Before: Dec 10 15:31:22 2013 GMT
++#            Not After : Nov 16 15:31:22 2113 GMT
++#        Subject: C=US, ST=CA, L=State1, O=Openstack Test Org, OU=Openstack Test Unit, CN=0.0.0.0
++#        Subject Public Key Info:
++#            Public Key Algorithm: rsaEncryption
++#                Public-Key: (2048 bit)
++#                Modulus:
++#                    00:ca:6b:07:73:53:24:45:74:05:a5:2a:27:bd:3e:
++#                    .
++#                    .
++#                    .
++#                Exponent: 65537 (0x10001)
++#        X509v3 extensions:
++#            X509v3 Key Usage:
++#                Key Encipherment, Data Encipherment
++#            X509v3 Extended Key Usage:
++#                TLS Web Server Authentication
++#            X509v3 Subject Alternative Name:
++#                DNS:foo.example.net, DNS:*.example.com
++#    Signature Algorithm: sha1WithRSAEncryption
++#         7e:41:69:da:f4:3c:06:d6:83:c6:f2:db:df:37:f1:ac:fa:f5:
++#         .
++#         .
++#         .
++-----BEGIN CERTIFICATE-----
++MIIDxDCCAqygAwIBAgIJAKZnQ0k/3MLzMA0GCSqGSIb3DQEBBQUAMHgxCzAJBgNV
++BAYTAlVTMQswCQYDVQQIEwJDQTEPMA0GA1UEBxMGU3RhdGUxMRswGQYDVQQKExJP
++cGVuc3RhY2sgVGVzdCBPcmcxHDAaBgNVBAsTE09wZW5zdGFjayBUZXN0IFVuaXQx
++EDAOBgNVBAMTBzAuMC4wLjAwIBcNMTMxMjEwMTUzMTIyWhgPMjExMzExMTYxNTMx
++MjJaMHgxCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEPMA0GA1UEBxMGU3RhdGUx
++MRswGQYDVQQKExJPcGVuc3RhY2sgVGVzdCBPcmcxHDAaBgNVBAsTE09wZW5zdGFj
++ayBUZXN0IFVuaXQxEDAOBgNVBAMTBzAuMC4wLjAwggEiMA0GCSqGSIb3DQEBAQUA
++A4IBDwAwggEKAoIBAQDKawdzUyRFdAWlKie9Pn10j7frffN+z1gEMluK2CtDEwv9
++kbD4uS/Kz4dujfTx03mdyNfiMVlOM+YJm/qeLLSdJyFyvZ9Y3WmJ+vT2RGlMMhLd
++/wEnMRrTYLL39pwI6z+gyw+4D78Pyv/OXy02IA6WtVEefYSx1vmVngb3pL+iBzhO
++8CZXNI6lqrFhh+Hr4iMkYMtY1vTnwezAL6p64E/ZAFNPYCEJlacESTLQ4VZYniHc
++QTgnE1czlI1vxlIk1KDXAzUGeeopZecRih9qlTxtOpklqEciQEE+sHtPcvyvdRE9
++Bdyx5rNSALLIcXs0ViJE1RPlw3fjdBoDIOygqvX1AgMBAAGjTzBNMAsGA1UdDwQE
++AwIEMDATBgNVHSUEDDAKBggrBgEFBQcDATApBgNVHREEIjAggg9mb28uZXhhbXBs
++ZS5uZXSCDSouZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEFBQADggEBAH5Badr0PAbW
++g8by29838az69Raul5IkpZQ5V3O1NaNNWxvmF1q8zFFqqGK5ktXJAwGiwnYEBb30
++Zfrr+eFIEERzBthSJkWlP8NG+2ooMyg50femp+asAvW+KYYefJW8KaXTsznMsAFy
++z1agcWVYVZ4H9PwunEYn/rM1krLEe4Cagsw5nmf8VqZg+hHtw930q8cRzgDsZdfA
++jVK6dWdmzmLCUTL1GKCeNriDw1jIeFvNufC+Q3orH7xBx4VL+NV5ORWdNY/B8q1b
++mFHdzbuZX6v39+2ww6aZqG2orfxUocc/5Ox6fXqenKPI3moeHS6Ktesq7sEQSJ6H
++QZFsTuT/124=
++-----END CERTIFICATE-----
