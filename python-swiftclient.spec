@@ -1,21 +1,19 @@
 Name:       python-swiftclient
-Version:    1.8.0
-Release:    2%{?dist}
+Version:    2.0.2
+Release:    1%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
 URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
 #
-# patches_base=1.8.0
+# patches_base=2.0.2
 #
 Patch0001: 0001-Remove-builtin-requirements-handling.patch
-Patch0002: 0002-Add-SSL-certificate-verification-by-default.patch
 
 BuildArch:  noarch
-Requires:   python-simplejson
 Requires:   python-keystoneclient
-Requires:   pyOpenSSL >= 0.12
+Requires:   python-requests
 # /usr/bin/swift collision with older swift-im rhbz#857900
 Conflicts:  swift < 2.0-0.3
 
@@ -23,7 +21,7 @@ BuildRequires: python2-devel
 BuildRequires: python-setuptools
 BuildRequires: python-d2to1
 BuildRequires: python-pbr
-BuildRequires: pyOpenSSL
+BuildRequires: python-requests
 
 %description
 Client library and command line utility for interacting with Openstack
@@ -43,7 +41,9 @@ Object Storage API.
 %setup -q
 
 %patch0001 -p1
-%patch0002 -p1
+
+# Let RPM handle the dependencies
+rm -f test-requirements.txt requirements.txt
 
 # Remove bundled egg-info
 rm -rf python_swiftclient.egg-info
@@ -75,6 +75,11 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Thu Feb 27 2014 Jakub Ruzicka <jruzicka@redhat.com> 2.0.2-1
+- Update to upstream 2.0.2
+- Switch from pyOpenSSL to python-requests - update dependencies
+- Remove unneeded dependency: python-simplejson
+
 * Tue Feb 11 2014 Pete Zaitcev <zaitcev@redhat.com> 1.8.0-2
 - Fix the fix for CVE-2013-6395: EBADF, wildcards
 
