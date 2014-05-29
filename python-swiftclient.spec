@@ -1,5 +1,5 @@
 Name:       python-swiftclient
-Version:    2.0.2
+Version:    2.1.0
 Release:    1%{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
@@ -7,7 +7,7 @@ URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
 #
-# patches_base=2.0.2
+# patches_base=2.1.0
 #
 Patch0001: 0001-Remove-builtin-requirements-handling.patch
 
@@ -22,6 +22,7 @@ BuildRequires: python-setuptools
 BuildRequires: python-d2to1
 BuildRequires: python-pbr
 BuildRequires: python-requests
+BuildRequires: python-six
 
 %description
 Client library and command line utility for interacting with Openstack
@@ -75,6 +76,10 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Thu May 29 2014 Jakub Ruzicka <jruzicka@redhat.com> 2.1.0-1
+- Update to upstream 2.1.0
+- New dependency: python-six
+
 * Thu Feb 27 2014 Jakub Ruzicka <jruzicka@redhat.com> 2.0.2-1
 - Update to upstream 2.0.2
 - Switch from pyOpenSSL to python-requests - update dependencies
