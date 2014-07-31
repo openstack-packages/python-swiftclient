@@ -39,7 +39,7 @@ Documentation for the client library for interacting with Openstack
 Object Storage API.
 
 %prep
-%setup -q
+%setup -q -n python-swiftclient-%{upstream_version}
 
 %patch0001 -p1
 
