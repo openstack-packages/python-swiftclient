@@ -33,6 +33,7 @@ Summary:    Documentation for OpenStack Object Storage API Client
 Group:      Documentation
 
 BuildRequires: python-sphinx
+BuildRequires: python-oslo-sphinx
 
 %description doc
 Documentation for the client library for interacting with Openstack
@@ -76,6 +77,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Fri Aug 15 2014 Derek Higgins <derekh@redhat.com> - XXX
+- Add dependency on python-oslo-sphinx
+
 * Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.1.0-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
 
