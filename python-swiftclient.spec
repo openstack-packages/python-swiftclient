@@ -14,6 +14,7 @@ Patch0001: 0001-Remove-builtin-requirements-handling.patch
 BuildArch:  noarch
 Requires:   python-keystoneclient
 Requires:   python-requests
+Requires:   python-futures
 # /usr/bin/swift collision with older swift-im rhbz#857900
 Conflicts:  swift < 2.0-0.3
 
@@ -77,6 +78,9 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %doc LICENSE doc/build/html
 
 %changelog
+* Thu Sep 18 2014 James Slagle <jslagle@redhat.com> - XXX
+- Add Requires on python-futures
+
 * Fri Aug 15 2014 Derek Higgins <derekh@redhat.com> - XXX
 - Add dependency on python-oslo-sphinx
 
