@@ -1,20 +1,16 @@
 Name:       python-swiftclient
-Version:    2.1.0
-Release:    2%{?dist}
+Version:    XXX
+Release:    XXX{?dist}
 Summary:    Client Library for OpenStack Object Storage API
 License:    ASL 2.0
 URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
-#
-# patches_base=2.1.0
-#
 Patch0001: 0001-Remove-builtin-requirements-handling.patch
 
 BuildArch:  noarch
 Requires:   python-keystoneclient
 Requires:   python-requests
-Requires:   python-futures
 # /usr/bin/swift collision with older swift-im rhbz#857900
 Conflicts:  swift < 2.0-0.3
 
@@ -24,6 +20,10 @@ BuildRequires: python-d2to1
 BuildRequires: python-pbr
 BuildRequires: python-requests
 BuildRequires: python-six
+Requires:      python-simplejson
+Requires:      python-futures
+Requires:      python-requests
+Requires:      python-six
 
 %description
 Client library and command line utility for interacting with Openstack
@@ -41,7 +41,7 @@ Documentation for the client library for interacting with Openstack
 Object Storage API.
 
 %prep
-%setup -q -n python-swiftclient-%{upstream_version}
+%setup -q -n %{name}-%{upstream_version}
 
 %patch0001 -p1
 
@@ -52,10 +52,10 @@ rm -f test-requirements.txt requirements.txt
 rm -rf python_swiftclient.egg-info
 
 %build
-%{__python} setup.py build
+%{__python2} setup.py build
 
 %install
-%{__python} setup.py install -O1 --skip-build --root %{buildroot}
+%{__python2} setup.py install -O1 --skip-build --root %{buildroot}
 
 export PYTHONPATH="$( pwd ):$PYTHONPATH"
 pushd doc
@@ -70,19 +70,26 @@ rm -fr doc/build/html/.doctrees doc/build/html/.buildinfo
 %files
 %doc LICENSE README.rst
 %{_bindir}/swift
-%{python_sitelib}/swiftclient
-%{python_sitelib}/*.egg-info
+%{python2_sitelib}/swiftclient
+%{python2_sitelib}/*.egg-info
 %{_mandir}/man1/swift.1*
 
 %files doc
 %doc LICENSE doc/build/html
 
 %changelog
-* Thu Sep 18 2014 James Slagle <jslagle@redhat.com> - XXX
-- Add Requires on python-futures
+* Wed Oct 22 2014 Haïkel Guémar <hguemar@fedoraproject.org> - 2.3.1-2
+- Add missing requirements (RHBZ #1154169)
+- Few specs cleanups
 
-* Fri Aug 15 2014 Derek Higgins <derekh@redhat.com> - XXX
-- Add dependency on python-oslo-sphinx
+* Mon Oct 13 2014 Jakub Ruzicka <jruzicka@redhat.com> 2.3.1-1
+- Update to upstream 2.3.1
+
+* Thu Sep 18 2014 Pete Zaitcev <zaitcev@redhat.com> 2.3.0-1
+- Update to upstream 2.3.0 (Juno RC)
+- Upstream update includes fix for bz#1126942
+- Upstream update includes support for Keystone v3
+- New build dependency: python-oslo-sphinx
 
 * Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.1.0-2
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
