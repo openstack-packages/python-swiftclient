@@ -1,0 +1,7 @@
+Code-Review+2: Alan Pevec <alan.pevec@redhat.com>
+Verified+1: Alan Pevec <alan.pevec@redhat.com>
+Submitted-by: Alan Pevec <alan.pevec@redhat.com>
+Submitted-at: Mon, 22 Jun 2015 19:39:58 +0200
+Reviewed-on: https://review.gerrithub.io/237039
+Project: openstack-packages/python-swiftclient
+Branch: refs/heads/rpm-master
