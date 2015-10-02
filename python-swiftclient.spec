@@ -6,8 +6,6 @@ License:    ASL 2.0
 URL:        http://pypi.python.org/pypi/%{name}
 Source0:    http://pypi.python.org/packages/source/p/%{name}/%{name}-%{version}.tar.gz
 
-Patch0001: 0001-Remove-builtin-requirements-handling.patch
-
 BuildArch:  noarch
 Requires:   python-keystoneclient
 Requires:   python-requests
@@ -42,8 +40,6 @@ Object Storage API.
 
 %prep
 %setup -q -n %{name}-%{upstream_version}
-
-%patch0001 -p1
 
 # Let RPM handle the dependencies
 rm -f test-requirements.txt requirements.txt
