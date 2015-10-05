@@ -1,0 +1,7 @@
+Verified+1: rdo-ci-jenkins <whayutin+rdocijenkins@redhat.com>
+Code-Review+2: Javier Peña <jpena@redhat.com>
+Submitted-by: Javier Peña <jpena@redhat.com>
+Submitted-at: Mon, 05 Oct 2015 14:08:59 +0200
+Reviewed-on: https://review.gerrithub.io/248902
+Project: openstack-packages/python-swiftclient
+Branch: refs/heads/rpm-master
